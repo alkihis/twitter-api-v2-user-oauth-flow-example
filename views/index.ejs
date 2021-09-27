@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitter API OAuth flow test</title>
+</head>
+<body>
+  <main>
+    <div id="root">
+      <strong>Hello!</strong>
+      <br>
+      <% if (authMode === 'callback') { %>
+        <a href="<%= authLink %>">Click here</a> to start login flow in your application.
+      <% } %>
+      <% if (authMode === 'pin') { %>
+        <a id="auth-link" href="<%= authLink %>" target="_blank">Click here</a> to start login flow in your application (open in a new tab).
+      <% } %>
+    </div>
+
+    <div id="auth-mode" data-mode="<%= authMode %>"></div>
+  </main>
+
+  <% if (authMode === 'pin') { %>
+    <script>
+      const root = document.getElementById('root');
+      const authLink = document.getElementById('auth-link');
+      authLink.addEventListener('click', onAuthLinkClick);
+
+      function onAuthLinkClick() {
+        root.innerHTML = `
+          <form id="pin-form">
+            <strong>Please enter Twitter given PIN code</strong>
+            <br>
+            <div>
+              <input id="pin-input" type="text" placeholder="Enter PIN here...">
+            </div>
+            <button id="pin-validate" type="submit">Submit</button>
+          </form>
+        `;
+
+        const pinInput = document.getElementById('pin-input');
+        const pinValidate = document.getElementById('pin-validate');
+        const pinForm = document.getElementById('pin-form');
+        const handler = e => {
+          e.preventDefault();
+          e.stopPropagation();
+
+          if (!pinInput.value) {
+            alert('Please enter a valid PIN!');
+            return;
+          }
+
+          validatePin();
+        };
+
+        pinValidate.addEventListener('click', handler);
+        pinForm.addEventListener('submit', handler);
+      }
+
+      // Send the PIN input to /validate-pin, and print the result
+      async function validatePin() {
+        const pinInput = document.getElementById('pin-input');
+
+        const { accessToken, accessSecret, userId, screenName } = await fetch('/validate-pin', {
+          method: 'POST',
+          body: JSON.stringify({ pin: pinInput.value }),
+          headers: { 'Content-Type': 'application/json' },
+        })
+          .then(r => {
+            if (r.ok) {
+              return r.json();
+            }
+
+            return r.json()
+              .then(data => {
+                alert(data.message);
+                return Promise.reject(data);
+              });
+          });
+
+        root.innerHTML = `
+          <strong>Congratulations!</strong>
+          <br>
+          You are successfully logged in to Twitter using your application.
+
+          <ul>
+            <li>Access token: ${accessToken}</li>
+            <li>Access secret: ${accessSecret}</li>
+            <li>User ID: ${userId}</li>
+            <li>Username: @${screenName}</li>
+          </ul>
+        `;
+      }
+    </script>
+   <% } %>
+</body>
+</html>
